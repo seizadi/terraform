@@ -1,8 +1,15 @@
 package aws
 
-import "github.com/hashicorp/terraform/helper/schema"
+import (
+	"fmt"
+	"log"
 
-func resourceAwsElasticYranscoderPreset() *schema.Resource {
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/elastictranscoder"
+	"github.com/hashicorp/terraform/helper/schema"
+)
+
+func resourceAwsElasticTranscoderPreset() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceAwsElasticTranscoderPresetCreate,
 		Read:   resourceAwsElasticTranscoderPresetRead,
@@ -10,11 +17,6 @@ func resourceAwsElasticYranscoderPreset() *schema.Resource {
 		Delete: resourceAwsElasticTranscoderPresetDelete,
 
 		Schema: map[string]*schema.Schema{
-			"name": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-			},
-
 			"audio": &schema.Schema{
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -51,6 +53,11 @@ func resourceAwsElasticYranscoderPreset() *schema.Resource {
 			},
 
 			"container": &schema.Schema{
+				Type:     schema.TypeString,
+				Required: true,
+			},
+
+			"name": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 			},
@@ -218,7 +225,110 @@ func resourceAwsElasticYranscoderPreset() *schema.Resource {
 }
 
 func resourceAwsElasticTranscoderPresetCreate(d *schema.ResourceData, meta interface{}) error {
-	return nil
+	elastictranscoderconn := meta.(*AWSClient).elastictranscoderconn
+
+	req := &elastictranscoder.CreatePresetInput{}
+
+	if audio, ok := d.GetOk("audio"); ok {
+		req.Audio = expandETAudioParams(audio.(*schema.Set))
+	}
+
+	req.Container = aws.String(d.Get("container").(string))
+
+	if desc, ok := d.GetOk("description"); ok {
+		req.Description = aws.String(desc.(string))
+	}
+
+	req.Name = aws.String(d.Get("name").(string))
+
+	if thumbs, ok := d.GetOk("thumbnails"); ok {
+		req.Thumbnails = expandETThumbnails(thumbs.(*scheme.Set))
+	}
+
+	if video, ok := d.GetOk("video"); ok {
+		req.Video = exapndETVideoParams(video.(*scheme.Set))
+	}
+
+	log.Printf("[DEBUG] Elastic Transcoder Preset create opts: %s", req)
+	resp, err := elastictranscoder.CreatePreset(req)
+	if err != nil {
+		return fmt.Errorf("Error creating Elastic Transcoder Preset: %s", err)
+	}
+
+	return resourceAwsElasticTranscoderPipelineUpdate(d, meta)
+
+}
+
+func expandETThumbnails(s *schema.Set) *elastictranscoder.Thumbnails {
+	if s == nil || s.Len() == 0 {
+		return nil
+	}
+
+	thumbs := &elastictranscoder.Thumbnails{}
+
+	t := s.List()[0].(map[string]interface{})
+
+}
+
+func expandETAudioParams(s *schema.Set) *elastictranscoder.AudioState {
+	if s == nil || s.Len() == 0 {
+		return nil
+	}
+
+	audioParams = &elastictranscoder.AudioParams{}
+
+	audio := s.List()[0].(map[string]interface{})
+
+	if a, ok := audio["audio_packing_mode"]; ok {
+		audioParams.AudioPackingMode = aws.String(a.(string))
+	}
+
+	if b, ok := audio["bitrate"]; ok {
+		audioParams.BitRate = aws.String(b.(string))
+	}
+
+	if c, ok := audio["channels"]; ok {
+		audioParams.Channels = aws.String(c.(string))
+	}
+
+	if c, ok := audio["codec"]; ok {
+		audioParams.Codec = aws.String(c.(string))
+	}
+
+	audioParams.CodecOptions = expandETAudioCodecOptions(audio["codec_options"].(*schema.Set))
+
+	if s, ok := audio["sample_rate"]; ok {
+		audioParams.SampleRate = aws.String(s.(string))
+	}
+
+	return audioParams
+}
+
+func expandETAudioCodecOptions(s *schema.Set) *slastictranscoder.AudioCodecOptions {
+	if s == nil || s.Len() == 0 {
+		return nil
+	}
+
+	codecOpts := &elastictranscoder.AudioCodecOptions{}
+	codec := s.List()[0].(map[string]interface{})
+
+	if b, ok := codec["bit_depth"]; ok {
+		codeOpts.BitDepth = aws.String(b.(string))
+	}
+
+	if b, ok := codec["bit_order"]; ok {
+		codecOpts.BitOrder = aws.String(b.(string))
+	}
+
+	if p, ok := codec["profile"]; ok {
+		codecOpts.Profile = aws.String(p.(string))
+	}
+
+	if s, ok := codec["signed"]; ok {
+		codecOpts.Signed = aws.String(s.(string))
+	}
+
+	return codecOpts
 }
 
 func resourceAwsElasticTranscoderPresetUpdate(d *schema.ResourceData, meta interface{}) error {
