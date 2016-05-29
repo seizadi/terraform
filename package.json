@@ -1,0 +1,14 @@
+{
+  "author": {
+    "name": "Soheil Eizadi",
+    "company": "Soheil Eizadi"
+  },
+  "name": "terraform",
+  "version": "0.7.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seizadi/terraform.git"
+  },
+  "devDependencies": {
+  }
+}
